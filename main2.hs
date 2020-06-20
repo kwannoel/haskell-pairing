@@ -31,6 +31,9 @@ some1 = Some 1
 |-------------|----------------------------------|
 | identity    | `fmap id = id`                   |
 | composition | `fmap (f . g) = fmap f . fmap g` |
+
+class Functor f where
+    fmap :: (a -> b) -> f a -> f b
 -}
 
 data Identity a = 
@@ -42,10 +45,6 @@ f (Identity a) = a
 
 f' :: a -> Identity a
 f' a = Identity a
-
-instance Functor Identity where
-    -- fmap :: (a -> b) -> Identity a -> Identity b
-    fmap f (Identity a) = Identity (f a)  
 
 f1 :: Int  -> Int 
 f1 i1 = div (i1 * (i1 - 1)) 2
@@ -71,8 +70,6 @@ n3 = Identity 3
 v2 = Identity "Hi"
 v3 = Identity True
 
-f1' = fmap f1 n1
-
 data Optional a = Some a | None deriving (Eq, Show)
 
 instance Functor Optional where
@@ -84,5 +81,73 @@ data List a = Nil | Cons a (List a) deriving (Eq, Show)
 l3 = Cons 1 (Cons 2 (Cons 3 Nil))
 l4 = Cons '1' (Cons '2' (Cons '3' Nil))
 
-instance Functor List where
-    fmap f (Cons a as ) 
+{-
+class Monoid a where
+    mempty :: a
+    (<>) :: a -> a -> a
+
+instance Monoid String where
+    mempty = ""
+    s1 <> s2 = s1 ++ s2
+
+newtype Sum = Sum { getInt :: Int }
+
+instance Monoid Sum where
+    mempty = Sum 0
+    s1 <> s2 = Sum (getInt s1 + getInt s2)
+-}
+
+{-
+class Monad m where
+    (>>=) :: m a -> (a -> m b) -> m b
+
+Law 	       | definition
+------------------------------------------
+left identity  |	return a >>= f = f a
+right identity | 	m >>= return = m
+associativity  |	(m >>= f) >>= g = m >>= (\x -> fx >>= g)
+-}
+
+data Reader r a = Reader { runReader :: (r -> a) }
+
+instance Functor (Reader r) where
+    -- fmap :: (a -> b) -> Reader r a -> Reader r b
+    fmap f reader = Reader $ f . (runReader reader)
+
+instance Applicative (Reader r) where
+    pure a = Reader (const a)
+    Reader f <*> Reader a = Reader $ \r -> let fi = f r
+                                               ai = a r
+                                           in  fi ai
+
+instance Monad (Reader r) where
+    Reader ra >>= af = Reader $ \r -> let a = ra r
+                                          Reader rb = af a
+                                          b = rb r
+                                      in  b
+
+instance Functor Identity where
+    fmap f (Identity i) = Identity $ f i
+    
+data Five a b c d e = Five a b c d e
+
+instance (Show a, Show b, Show c, Show d, Show e) => Show (Five a b c d e) where
+    show (Five a b c d e) = "Five" <> (show a)
+                                   <> (show b)
+                                   <> (show c)
+                                   <> (show d)
+                                   <> (show e)
+
+instance Functor (Five a b c d) where
+    fmap f (Five a b c d e) = Five a b c d (f e)
+    
+data Phantom a = Phantom
+
+instance Functor Phantom where
+    fmap f (Phantom ) = Phantom
+    
+data Triple a b c = Triple a b c
+
+instance Functor (Triple a b) where
+    fmap f (Triple a b c) = Triple a b (f c)
+
